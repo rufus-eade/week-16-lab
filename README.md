@@ -48,9 +48,9 @@ firefox http://localhost:3000/?language=gurmukhi
 1. [x] Get it working locally
 1. [x] implement the missing steps in `.github/workflows/main.yaml`
    1. [x] Add supply chain scanning and fix any issues
-   1. [X] Add unit testing
+   1. [x] Add unit testing
 1. [ ] Create base infra as per two objectives and target arch below
-1. [ ] Get infra scripts and continious deployment working by implementing `/infra/deploy.sh`
+1. [ ] Get infra scripts and continious deployment working
 1. [ ] Implement the `/about` page and watch it deploy end-to-end
 
 ![target AWS arch](session-16-aws-target-arch.png)
