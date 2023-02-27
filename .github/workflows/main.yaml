@@ -49,11 +49,11 @@ jobs:
         run: |
           npm run lint
 
-      # TODO: add supply chain scanning `npm audit` - SCA software composition analysis
+      - name: run testing
+        working-directory: app
+        run: |
+          npm run test
 
-      # TODO: add unit testing
-
-    deploy:
       # TODO: add cloudformation linting
 
       - name: Deploy to AWS CloudFormation
