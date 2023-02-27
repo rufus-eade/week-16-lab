@@ -58,7 +58,6 @@ jobs:
 
       - name: Deploy to AWS CloudFormation
         uses: aws-actions/aws-cloudformation-github-deploy@v1
-        working-directory: infra
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }
@@ -66,6 +65,6 @@ jobs:
           AWS_DEFAULT_OUTPUT: json
         with:
           name: JujharStack
-          template: my-cloudformation.yaml
+          template: infra/my-cloudformation.yaml
 
       - run: echo "🍏 This job's status is ${{ job.status }}."
