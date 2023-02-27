@@ -19,6 +19,22 @@ Parameters:
     Description: "Private A Subnet"
     Type: String
     Default: "10.0.2.0/24"
+  # inject in the latest AMI
+  Linux2Ami:
+    Type: String
+  # used to open up ssh port
+  myIpAddress:
+    Type: String
+  UserDataScript:
+    Type: String
+  spotInstancePrice:
+    Type: String
+    Default: "0.015"
+  stackName:
+    Type: String
+  instanceType:
+    Type: String
+    Default: t2.micro
 
 Resources:
   # Setup vpc
@@ -129,17 +145,77 @@ Resources:
       SubnetId: !Ref SubnetPvtA
       RouteTableId: !Ref PublicRouteTable
 
-# # Exporting outputs to use in downstream stacks
-# Outputs:
-#   StackName:
-#     Value: !Ref AWS::StackName
-#   vpcId:
-#     Description: VPC id
-#     Export:
-#       Name: !Sub "${AWS::StackName}-vpc"
-#     Value: !Ref VPC
-#   SubnetPubAId:
-#     Description: SubnetPubA Id
-#     Value: !Ref SubnetPubA
-#     Export:
-#       Name: !Sub "${AWS::StackName}-pub-subnet-a"
+  CsLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      # IamInstanceProfile: !Ref CsServerInstanceProfile
+      ImageId: !Sub ${Linux2Ami}
+      InstanceMonitoring: false
+      InstanceType: !Sub ${instanceType}
+      AssociatePublicIpAddress: true
+      SpotPrice: !Sub "${spotInstancePrice}"
+      SecurityGroups:
+        - !Ref CsServerSecurityGroup
+      UserData:
+        Fn::Base64: !Ref UserDataScript
+
+  CsServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG for cs server
+      GroupName: cs-server-sg
+      SecurityGroupIngress:
+        - Description: SSH from my current ip
+          IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Sub "${myIpAddress}"
+        - Description: web
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - Description: docker test
+          IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+      VpcId:
+        Fn::ImportValue: !Sub "${stackName}-net-vpc"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-sg"
+
+  CsServerAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones:
+        - eu-west-2a
+      HealthCheckGracePeriod: 10
+      HealthCheckType: EC2
+      LaunchConfigurationName: !Ref CsLaunchConfig
+      MaxSize: "1"
+      MinSize: "1"
+      TerminationPolicies:
+        - OldestInstance
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-ASG"
+          PropagateAtLaunch: true
+      VPCZoneIdentifier:
+        - Fn::ImportValue: !Sub "${stackName}-net-pub-subnet-a"
+
+# Exporting outputs to use in downstream stacks
+Outputs:
+  StackName:
+    Value: !Ref AWS::StackName
+  vpcId:
+    Description: VPC id
+    Export:
+      Name: !Sub "${AWS::StackName}-vpc"
+    Value: !Ref VPC
+  SubnetPubAId:
+    Description: SubnetPubA Id
+    Value: !Ref SubnetPubA
+    Export:
+      Name: !Sub "${AWS::StackName}-pub-subnet-a"
