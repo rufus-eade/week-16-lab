@@ -1,1 +1,145 @@
----
+Description: week 16
+
+# Default parameters can be overridden by command line execution
+Parameters:
+  AvailabilityZones:
+    Description:
+      "List of AZs"
+    Type: CommaDelimitedList
+    Default: eu-west-2a
+  VpcCidr:
+    Description: "CIDR block for the VPC"
+    Type: String
+    Default: "10.0.0.0/22" # 32 total addresses should be more than enough
+  PubASubnetCidr:
+    Description: "Public A Subnet"
+    Type: String
+    Default: "10.0.0.0/24"
+  PvtASubnetCidr:
+    Description: "Private A Subnet"
+    Type: String
+    Default: "10.0.2.0/24"
+
+Resources:
+  # Setup vpc
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Sub ${VpcCidr}
+      InstanceTenancy: default
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-vpc"
+
+  # public subnet AZ-a
+  SubnetPubA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !Ref AvailabilityZones]
+      CidrBlock: !Sub ${PubASubnetCidr}
+      VpcId: !Ref VPC
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-pub-a"
+        - Key: SubnetType
+          Value: Public
+        - Key: Tier
+          Value: Public
+
+  SubnetPvtA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !Ref AvailabilityZones]
+      CidrBlock: !Sub ${PvtASubnetCidr}
+      VpcId: !Ref VPC
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-pvt-a"
+        - Key: SubnetType
+          Value: Private
+        - Key: Tier
+          Value: Private
+
+  # creates IGW
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-igw"
+
+  # Attaches IGW to vpc
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-pub-rt"
+        - Key: Network
+          Value: Public
+      VpcId: !Ref VPC
+
+  # Public Route table to InternetGateway in each AZ
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachInternetGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicRouteTableAssociationA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetPubA
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-pvt-rt"
+        - Key: Network
+          Value: Private
+      VpcId: !Ref VPC
+
+  # Private Route table to InternetGateway in each AZ
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachInternetGateway
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PrivateRouteTableAssociationA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetPvtA
+      RouteTableId: !Ref PublicRouteTable
+
+# # Exporting outputs to use in downstream stacks
+# Outputs:
+#   StackName:
+#     Value: !Ref AWS::StackName
+#   vpcId:
+#     Description: VPC id
+#     Export:
+#       Name: !Sub "${AWS::StackName}-vpc"
+#     Value: !Ref VPC
+#   SubnetPubAId:
+#     Description: SubnetPubA Id
+#     Value: !Ref SubnetPubA
+#     Export:
+#       Name: !Sub "${AWS::StackName}-pub-subnet-a"

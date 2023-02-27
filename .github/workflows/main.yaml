@@ -67,7 +67,7 @@ jobs:
       - name: Deploy to AWS CloudFormation
         uses: aws-actions/aws-cloudformation-github-deploy@v1
         with:
-          name: JujharStack
+          name: rufus-e-stack
           template: infra/my-cloudformation.yaml
 
       - run: echo "🍏 This job's status is ${{ job.status }}."
